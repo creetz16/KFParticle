@@ -256,6 +256,9 @@ class KFParticle :public KFParticleBase
   
   //* Get dS to other particle p (dSp for particle p also returned) 
   void GetDStoParticle( const KFParticleBase &p, float dS[2], float dsdr[4][6] ) const ;
+
+  //* Add measurement to the KFParticle
+  void AddMeasurement(KFParticle measurement);
   
   
   //* 

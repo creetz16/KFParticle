@@ -26,6 +26,8 @@
 
 #include "KFPTrack.h"
 #include "KFPVertex.h"
+#include "TMatrixD.h"
+#include "TMatrixDSym.h"
 
 #ifndef KFParticleStandalone
 ClassImp(KFParticle);
@@ -494,4 +496,77 @@ float KFParticle::GetPseudoProperDecayTime( const KFParticle &pV, const float& m
       f0*mC00*f0;
   }
   return ( dx*Px() + dy*Py() )*mipt2;
+}
+
+void KFParticle::AddMeasurement(KFParticle measurement) 
+{
+  measurement.TransportToParticle(*this);
+
+  TMatrixD m1(6, 1), m2(6, 1), delta(6, 0);
+  TMatrixDSym C1(6), C2(6), Csum(6), Cnew(7);
+
+  // get state vectors and covariances
+  for (int i = 0; i < 6; i++) {
+    m1(i, 0) = this->GetParameter(i);
+    m2(i, 0) = measurement.GetParameter(i);
+    delta(i, 0) = m2(i, 0) - m1(i, 0);
+
+    for (int j = i; j < 6; j++) {
+      C1(i, j) = this->Cij(i, j);
+      C2(i, j) = measurement.Cij(i, j);
+      Csum(i, j) = C1(i, j) + C2(i, j);
+    }
+  }
+
+  // calculate gain
+  auto W{TMatrixDSym(TMatrixDSym::kInverted, Csum)};    // 6x6
+  auto K{TMatrixD(C1, TMatrixD::kTransposeMult, W)};    // 6x6
+  auto D{TMatrixD(K, TMatrixD::kMult, delta)};          // 6x1
+
+  // update measurement
+  for (int i = 0; i < 6; i++) {
+    this->Parameter(i) += D(i, 0);
+  }
+  // update energy 
+  double oldEnergy = this->GetParameter(6);
+  this->Parameter(6) += 1/(oldEnergy) * (delta(3, 0) * this->GetParameter(3) + delta(4, 0) * this->GetParameter(4) + delta(5, 0) * this->GetParameter(5));
+
+  // get new covariance
+  TMatrixDSym U(6);
+  TMatrixDSym UnitMatrix(U);
+  auto F1{TMatrixD(U, TMatrixD::kMinus, K)};
+  auto F2{TMatrixD(TMatrixD::kTransposed, F1)};
+
+  auto tmp{TMatrixD(F1, TMatrixD::kMult, C1)};
+  auto C{TMatrixD(tmp, TMatrixD::kMult, F2)};
+
+  // update covariance
+  for (int i = 0; i < 6; i++) {
+    for (int j = i; j < 6; j++) {
+      this->Covariance(i, j) = C(i, j);
+    }
+  }
+
+  // set energy variance
+  this->Covariance(7, 7) = 1/(this->GetParameter(6) * this->GetParameter(6)) * (
+              (this->GetParameter(3) * this->GetParameter(3) * this->GetErrPx() * this->GetErrPx()) + 
+              (this->GetParameter(4) * this->GetParameter(4) * this->GetErrPy() * this->GetErrPy()) + 
+              (this->GetParameter(5) * this->GetParameter(5) * this->GetErrPz() * this->GetErrPz())
+              );
+
+  // set energy covariances
+  for (int i = 0; i < 3; i++) {
+    this->Covariance(i, 7) = 0.;
+    // momentum ???
+  }
+
+  // calculate Chi2
+  TMatrixD Chi2tmp(delta, TMatrixD::kTransposeMult, W);
+  TMatrixD Chi2(W, TMatrixD::kTransposeMult, Chi2tmp);
+  for (int i = 0; i < 6; i++) {
+    for (int j = i; j < 6; j++) {
+      this->Chi2() += Chi2(i, j);
+    }
+  }
+
 }
