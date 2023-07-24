@@ -519,8 +519,8 @@ void KFParticle::AddMeasurement(KFParticle measurement)
   }
 
   // calculate gain
-  auto W{TMatrixDSym(TMatrixDSym::kInverted, Csum)};    // 6x6
-  auto K{TMatrixD(C1, TMatrixD::kTransposeMult, W)};    // 6x6
+  auto W{TMatrixDSym(TMatrixDSym::kInverted, Csum)};    // weight matrix (6x6)
+  auto K{TMatrixD(C1, TMatrixD::kTransposeMult, W)};    // Kalman gain (6x6)
   auto D{TMatrixD(K, TMatrixD::kMult, delta)};          // 6x1
 
   // update measurement
@@ -538,7 +538,7 @@ void KFParticle::AddMeasurement(KFParticle measurement)
   auto F2{TMatrixD(TMatrixD::kTransposed, F1)};
 
   auto tmp{TMatrixD(F1, TMatrixD::kMult, C1)};
-  auto C{TMatrixD(tmp, TMatrixD::kMult, F2)};
+  auto C{TMatrixD(tmp, TMatrixD::kMult, F2)};   // updated covariance matrix for space and momentum (6x6)
 
   // update covariance
   for (int i = 0; i < 6; i++) {
@@ -556,8 +556,8 @@ void KFParticle::AddMeasurement(KFParticle measurement)
 
   // set energy covariances
   for (int i = 0; i < 3; i++) {
-    this->Covariance(i, 7) = 0.;
-    // momentum ???
+    this->Covariance(i, 7) = 0.;  // space --> is this really 0???
+                                  // momentum ???
   }
 
   // calculate Chi2
