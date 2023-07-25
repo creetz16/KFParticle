@@ -502,7 +502,7 @@ void KFParticle::AddMeasurement(KFParticle measurement)
 {
   measurement.TransportToParticle(*this);
 
-  TMatrixD m1(6, 1), m2(6, 1), delta(6, 0);
+  TMatrixD m1(6, 1), m2(6, 1), delta(6, 1);
   TMatrixDSym C1(6), C2(6), Csum(6), Cnew(7);
 
   // get state vectors and covariances
@@ -520,7 +520,7 @@ void KFParticle::AddMeasurement(KFParticle measurement)
 
   // calculate gain
   auto W{TMatrixDSym(TMatrixDSym::kInverted, Csum)};    // weight matrix (6x6)
-  auto K{TMatrixD(C1, TMatrixD::kTransposeMult, W)};    // Kalman gain (6x6)
+  auto K{TMatrixD(C1, TMatrixD::kMult, W)};             // Kalman gain (6x6)
   auto D{TMatrixD(K, TMatrixD::kMult, delta)};          // 6x1
 
   // update measurement
@@ -562,7 +562,7 @@ void KFParticle::AddMeasurement(KFParticle measurement)
 
   // calculate Chi2
   TMatrixD Chi2tmp(delta, TMatrixD::kTransposeMult, W);
-  TMatrixD Chi2(W, TMatrixD::kTransposeMult, Chi2tmp);
+  TMatrixD Chi2(Chi2tmp, TMatrixD::kMult, delta);
   for (int i = 0; i < 6; i++) {
     for (int j = i; j < 6; j++) {
       this->Chi2() += Chi2(i, j);
