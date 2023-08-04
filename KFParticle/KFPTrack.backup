@@ -85,9 +85,9 @@ public:
   /** Copies 3 momentum components of the track to the output array of floats. \param[out] position - the output array with the momentum of the track **/
   void   PxPyPz(float *position) const {position[0] = fP[3]; position[1] = fP[4]; position[2] = fP[5];}
   /** Copies position of the track to the output array of doubles. \param[out] position - the output array with the position of the track **/
-  void   XvYvZv(double *position)    const {position[0] = fP_d[0]; position[1] = fP_d[1]; position[2] = fP_d[2];}
+  void   XvYvZv(double *position)    const {position[0] = fP[0]; position[1] = fP[1]; position[2] = fP[2];}
   /** Copies 3 momentum components of the track to the output array of doubles. \param[out] position - the output array with the momentum of the track **/
-  void   PxPyPz(double *position) const {position[0] = fP_d[3]; position[1] = fP_d[4]; position[2] = fP_d[5];}
+  void   PxPyPz(double *position) const {position[0] = fP[3]; position[1] = fP[4]; position[2] = fP[5];}
 
   float GetX() const { return fP[0]; }  ///< Returns X coordinate of the track.
   float GetY() const { return fP[1]; }  ///< Returns Y coordinate of the track.
@@ -126,13 +126,13 @@ public:
     for(int i=0; i<6; i++)
       fP[i] = position[i];
   }
-  void SetParameters(const double *position) 
+  void SetParameters(double *position) 
   { 
     /** Sets parameters { X, Y, Z, Px, Py, Pz } of the track from the input array of doubles.
      ** \param[in] position - input array with the track parameters
      **/
     for(int i=0; i<6; i++)
-      fP_d[i] = position[i];
+      fP[i] = position[i];
   }
   void SetParameters(float x, float y, float z, float px, float py, float pz) 
   { 
@@ -191,7 +191,7 @@ public:
      ** \param[in] C[21] - array with the input elements of the covariance matrix stored in the lower triangular form
      **/
     for (int i=0; i<21; i++)
-      fC_d[i] = C[i];
+      fC[i] = C[i];
   }
   
   /** Sets an element of the covariance matrix with index "i". \param[in] c - value to be set \param[in] i - index of the element */
@@ -210,9 +210,7 @@ public:
  private:
 
   float fP[6];  ///< Parameters of the track: { X, Y, Z, Px, Py, Pz }.
-  double fP_d[6];
   float fC[21]; ///< Covariance matrix of the track parameters. Stored in the lower triangular form.
-  double fC_d[21]; 
   float fChi2;  ///< Chi-square of the track fit.
   char fQ;      ///< Charge of the track.
   short fNDF;   ///< Number of degree of freedom of the fit.

@@ -84,12 +84,13 @@ class KFParticle :public KFParticleBase
  //* Parameters, covariance matrix, charge and PID hypothesis should be provided 
 
   void Create( const float Param[], const float Cov[], Int_t Charge, float mass /*Int_t PID*/ );
-  void Create( const Double_t Param[], const Double_t Cov[], Int_t Charge, float mass /*Int_t PID*/ );
+  void Create( const Double_t Param[], const Double_t Cov[], Int_t Charge, double mass /*Int_t PID*/ );
 
  //* Initialisation from ALICE track, PID hypothesis shoould be provided 
 
   KFParticle( const KFPTrack &track, const int PID );
 
+  KFParticle( const KFPTrack &track, const int PID, const bool flag_double); 
 
   //* Initialisation from VVertex 
 
@@ -153,6 +154,9 @@ class KFParticle :public KFParticleBase
   float GetDecayLengthXY () const; ///< Returns decay length in XY
   float GetLifeTime      () const; ///< Returns life time ctau [cm]
   float GetR             () const; ///< Returns distance to the origin of the coordinate system {0,0,0}
+
+  double GetMass_d       () const; ///< Returns mass for double; Liuyao
+  double GetErrMass_d    () const; ///< Returns mass error four double; Liuyao 
 
   //* Accessors to estimated errors
 
@@ -503,6 +507,14 @@ inline float KFParticle::GetMass        () const
   else return par;
 }
 
+inline double KFParticle::GetMass_d        () const
+{
+  double par, err;
+  if( KFParticleBase::GetMass_d( par, err ) ) return 0;
+  else return par;
+}
+
+
 inline float KFParticle::GetDecayLength () const
 {
   float par, err;
@@ -612,6 +624,14 @@ inline float KFParticle::GetErrMass        () const
   if( KFParticleBase::GetMass( par, err ) ) return 1.e10;
   else return err;
 }
+
+inline double KFParticle::GetErrMass_d        () const
+{
+  double par, err;
+  if( KFParticleBase::GetMass_d( par, err ) ) return 1.e10;
+  else return err;
+}
+
 
 inline float KFParticle::GetErrDecayLength () const
 {

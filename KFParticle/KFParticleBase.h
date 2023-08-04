@@ -81,6 +81,7 @@ class KFParticleBase :public TObject {
   virtual ~KFParticleBase() { ; } ///< The default destructor.
 
   void Initialize( const float Param[], const float Cov[], Int_t Charge, float Mass );
+  void Initialize( const double Param[], const double Cov[], Int_t Charge, double Mass ); //Add the Initialize() Liuyao 
   void Initialize();
 
   void SetConstructMethod(Int_t m) {fConstructMethod = m;} ///< Defines the construction method for the current particle (see description of fConstructMethod).
@@ -134,6 +135,8 @@ class KFParticleBase :public TObject {
   Int_t GetDecayLengthXY ( float &l,   float &error ) const ;
   Int_t GetLifeTime      ( float &ctau,float &error ) const ;
   Int_t GetR             ( float &r,   float &error ) const ;
+
+  Int_t GetMass_d        ( double &m,   double &error ) const; //Liuyao
 
   //*
   //*  MODIFIERS
@@ -262,10 +265,14 @@ class KFParticleBase :public TObject {
 
   float fP[8];           ///< Particle parameters { X, Y, Z, Px, Py, Pz, E, S[=DecayLength/P]}.
   float fC[36];          ///< Low-triangle covariance matrix of fP.
+  double fP_d[8];        ///< Particle parameters { X, Y, Z, Px, Py, Pz, E, S[=DecayLength/P]} for double: Liuyao;
+  double fC_d[36];       ///< Low-triangle covariance matrix of fP for double: Liuyao; 
   float fChi2;           ///< Chi^2.
   float fSFromDecay;     ///< Distance from the decay vertex to the current position.
   float SumDaughterMass; ///< Sum of the daughter particles masses. Needed to set the constraint on the minimum mass during particle construction.
+  double SumDaughterMass_d; /// for double, Liuyao; 
   float fMassHypo;       ///< The mass hypothesis, used for the constraints during particle construction.
+  double fMassHypo_d;    /// for double, Liuyao; 
   Int_t fNDF;            ///< Number of degrees of freedom.
   int   fId;             ///< Id of the particle.
 #ifdef __ROOT__ //for the STAR experiment
