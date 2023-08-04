@@ -133,12 +133,12 @@ void KFParticleBase::Initialize( const float Param[], const float Cov[], Int_t C
    ** \param[in] mass - the mass hypothesis
    **/
 
-
   for( Int_t i=0; i<6 ; i++ ) fP[i] = Param[i];
   for( Int_t i=0; i<21; i++ ) fC[i] = Cov[i];
 
   float energy = sqrt( Mass*Mass + fP[3]*fP[3] + fP[4]*fP[4] + fP[5]*fP[5]);
   fP[6] = energy;
+
   fP[7] = 0;
   fQ = Charge;
   fNDF = 0;
@@ -166,6 +166,66 @@ void KFParticleBase::Initialize( const float Param[], const float Cov[], Int_t C
   SumDaughterMass = Mass;
   fMassHypo = Mass;
 }
+
+void KFParticleBase::Initialize( const double Param[], const double Cov[], Int_t Charge, double Mass )
+{
+  /** Sets the parameters of the particle:
+   **
+   ** \param[in] Param[6] = { X, Y, Z, Px, Py, Pz } - position and momentum
+   ** \param[in] Cov[21]  - lower-triangular part of the covariance matrix:@n
+   ** \verbatim
+             (  0  .  .  .  .  . )
+             (  1  2  .  .  .  . )
+   Cov[21] = (  3  4  5  .  .  . )
+             (  6  7  8  9  .  . )
+             ( 10 11 12 13 14  . )
+             ( 15 16 17 18 19 20 )
+   \endverbatim
+   ** \param[in] Charge - charge of the particle in elementary charge units
+   ** \param[in] mass - the mass hypothesis
+   **/
+
+
+  for( Int_t i=0; i<6 ; i++ ) fP_d[i] = Param[i];
+  for( Int_t i=0; i<21; i++ ) fC_d[i] = Cov[i];
+
+  double energy = sqrt( Mass*Mass + fP_d[3]*fP_d[3] + fP_d[4]*fP_d[4] + fP_d[5]*fP_d[5]);
+  fP_d[6] = energy;
+  fP_d[7] = 0;
+  fQ = Charge;
+  fNDF = 0;
+  fChi2 = 0;
+  fAtProductionVertex = 0;
+  fSFromDecay = 0;
+
+  double energyInv = 1./energy;
+  double
+    h0 = fP_d[3]*energyInv,
+    h1 = fP_d[4]*energyInv,
+    h2 = fP_d[5]*energyInv;
+
+  fC_d[21] = h0*fC_d[ 6] + h1*fC_d[10] + h2*fC_d[15];
+  fC_d[22] = h0*fC_d[ 7] + h1*fC_d[11] + h2*fC_d[16];
+  fC_d[23] = h0*fC_d[ 8] + h1*fC_d[12] + h2*fC_d[17];
+  fC_d[24] = h0*fC_d[ 9] + h1*fC_d[13] + h2*fC_d[18];
+  fC_d[25] = h0*fC_d[13] + h1*fC_d[14] + h2*fC_d[19];
+  fC_d[26] = h0*fC_d[18] + h1*fC_d[19] + h2*fC_d[20];
+  fC_d[27] = ( h0*h0*fC_d[ 9] + h1*h1*fC_d[14] + h2*h2*fC_d[20]
+             + 2*(h0*h1*fC_d[13] + h0*h2*fC_d[18] + h1*h2*fC_d[19] ) );
+  for( Int_t i=28; i<36; i++ ) fC_d[i] = 0;
+  fC_d[35] = 1.;
+
+  SumDaughterMass_d = Mass;
+  fMassHypo_d = Mass;
+
+  //for( Int_t i=0; i<8 ; i++ ) fP[i] = fP_d[i];   //Liuyao: fP_d->fP; 
+  //for( Int_t i=0; i<36; i++ ) fC[i] = fC_d[i];   //Liuyao: fC_d->fC; 
+  //SumDaughterMass = SumDaughterMass_d;           //Liuyao: SumDaughterMass_d -> SumDaughterMass; 
+  //fMassHypo       = fMassHypo_d;                 //Liuyao: fMassHypo_d       -> fMassHypo; 
+  //printf("call the Initialize_double by Liuyao: %.6f, %.6f, %.6f, %.6f, %.6f, %.6f, %.6f \n", fP_d[0], fP_d[1], fP_d[2], fP_d[3], fP_d[4], fP_d[5], fP_d[6]);
+}
+
+
 
 void KFParticleBase::Initialize()
 {
@@ -353,6 +413,50 @@ Int_t KFParticleBase::GetMass( float &m, float &error ) const
 
   return 1;
 }
+
+Int_t KFParticleBase::GetMass_d( double &m, double &error ) const
+{
+  /** Calculates the mass of the particle and its error. If they are well defined returns 0, otherwise 1.
+   ** \param[out] m - mass of the particle
+   ** \param[out] error - its error
+   **/
+ 
+  // s = sigma^2 of m2/2
+
+  double s = (  fP_d[3]*fP_d[3]*fC_d[9] + fP_d[4]*fP_d[4]*fC_d[14] + fP_d[5]*fP_d[5]*fC_d[20]
+             + fP_d[6]*fP_d[6]*fC_d[27]
+             + 2*( fP_d[3]*fP_d[4]*fC_d[13] + fP_d[5]*(fP_d[3]*fC_d[18] + fP_d[4]*fC_d[19])
+             - fP_d[6]*( fP_d[3]*fC_d[24] + fP_d[4]*fC_d[25] + fP_d[5]*fC_d[26] )  )
+            );
+
+  double m2 = (fP_d[6]*fP_d[6] - fP_d[3]*fP_d[3] - fP_d[4]*fP_d[4] - fP_d[5]*fP_d[5]);
+
+  
+  printf("KFParticleBase::GetMass_d, m2: %.15f, s: %.15f \n", m2, s);
+
+  if(m2<0.)
+  {
+    error = 1.e3;
+    m = -sqrt(-m2);
+    return 1;
+  }
+
+  m  = sqrt(m2);
+  if( m>1.e-6 ){
+    if( s >= 0 ) {
+      error = sqrt(s)/m;
+      return 0;
+    }
+  }
+  else {
+    error = 0.;
+    return 0;
+  }
+  error = 1.e3;
+
+  return 1;
+}
+
 
 
 Int_t KFParticleBase::GetDecayLength( float &l, float &error ) const 
@@ -628,6 +732,8 @@ void KFParticleBase::AddDaughter( const KFParticleBase &Daughter )
    ** \param[in] Daughter - the daughter particle
    **/
     
+  //printf("call the KFParticleBase_AddDaughter NDF: %d by Liuyao", fNDF);
+
   if( fNDF<-1 ){ // first daughter -> just copy
     fNDF   = -1;
     fQ     =  Daughter.GetQ();

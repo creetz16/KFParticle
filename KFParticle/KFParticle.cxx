@@ -70,7 +70,7 @@ void KFParticle::Create( const float Param[], const float Cov[], Int_t Charge, f
   KFParticleBase::Initialize( Param, C, Charge, mass );
 }
 
-void KFParticle::Create( const Double_t Param[], const Double_t Cov[], Int_t Charge, float mass )
+void KFParticle::Create( const Double_t Param[], const Double_t Cov[], Int_t Charge, double mass )
 {
   /** Constructor from a "cartesian" track, mass hypothesis should be provided
    ** \param[in] Param[6] = { X, Y, Z, Px, Py, Pz } - position and momentum
@@ -86,11 +86,12 @@ void KFParticle::Create( const Double_t Param[], const Double_t Cov[], Int_t Cha
    ** \param[in] Charge - charge of the particle in elementary charge units
    ** \param[in] mass - the mass hypothesis
    **/
-  float P[6];
+  double P[6]; // float->double: Liuyao
   for(int i=0; i<6; i++ ) P[i] = Param[i];
-  float C[21];
+  double C[21];// float->double: Liuyao
   for( int i=0; i<21; i++ ) C[i] = Cov[i];
-    
+  
+  //printf("call the Create_double by Liuyao: %.6f, %.6f, %.6f, %.6f, %.6f, %.6f \n", Param[0], Param[1], Param[2], Param[3], Param[4], Param[5]);
   KFParticleBase::Initialize( P, C, Charge, mass );
 }
 
@@ -112,6 +113,33 @@ KFParticle::KFParticle( const KFPTrack &track, const int PID ): KFParticleBase()
   fChi2 = track.GetChi2();
   fNDF = track.GetNDF();
   SetPDG(PID);
+#ifdef NonhomogeneousField
+  for(int iF=0; iF<10; iF++)
+    SetFieldCoeff( track.GetFieldCoeff()[iF], iF);
+#endif
+}
+
+KFParticle::KFParticle( const KFPTrack &track, const int PID, const bool flag ): KFParticleBase()
+{
+  /** Constructor from a track in the KF Particle format, PID hypothesis should be provided
+   ** \param[in] track - KFPTrack containing 6 parameters: { X, Y, Z, Px, Py, Pz } and their errors
+   ** \param[in] PID - PID hypothesis, needed to assign mass to a particle and calculate the energy
+   **/
+  if(flag){
+     track.XvYvZv(fP_d);
+     track.PxPyPz(fP_d+3);
+     fQ = track.Charge();
+     track.GetCovarianceXYZPxPyPz( fC_d );
+  }
+
+  double mass = KFParticleDatabase::Instance()->GetMass(PID);
+
+  Create(fP_d,fC_d,fQ,mass);
+  fChi2 = track.GetChi2();
+  fNDF = track.GetNDF();
+  SetPDG(PID);
+
+  //printf("KFParticle_Liuyao: %.6f: %.6f, %.6f, %.6f, %.6f, %.6f, fNDF: %d \n", fP_d[0], fP_d[1], fP_d[2], fP_d[3], fP_d[4], fP_d[5], fNDF);
 #ifdef NonhomogeneousField
   for(int iF=0; iF<10; iF++)
     SetFieldCoeff( track.GetFieldCoeff()[iF], iF);
