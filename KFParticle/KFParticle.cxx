@@ -26,8 +26,8 @@
 
 #include "KFPTrack.h"
 #include "KFPVertex.h"
-#include "TMatrixD.h"
-#include "TMatrixDSym.h"
+#include "TMatrixF.h"
+#include "TMatrixFSym.h"
 
 #ifndef KFParticleStandalone
 ClassImp(KFParticle);
