@@ -500,73 +500,89 @@ float KFParticle::GetPseudoProperDecayTime( const KFParticle &pV, const float& m
 
 void KFParticle::AddMeasurement(KFParticle measurement) 
 {
+  // measurement: KFParticle initialised from ITS tracklet with mass hypothesis of mother 
+  // --> energy calculated from params as float energy = sqrt( Mass*Mass + fP[3]*fP[3] + fP[4]*fP[4] + fP[5]*fP[5]) --> not measured! We don't want to use it?
+  // this: KFParticle reconstructed from decay daughters
+
+  // transport measurement to vertex
   measurement.TransportToParticle(*this);
+  
+  // Initialise
+  TMatrixF r(8, 1), m(6, 1); // state vector, measurement
+  TMatrixF C(8, 8), V(6, 6); // cov matrices
+  TMatrixF H(6, 8), W(6, 6); // measurement model and weight matrix
 
-  TMatrixD m1(6, 1), m2(6, 1), delta(6, 1);
-  TMatrixDSym C1(6), C2(6), Csum(6), Cnew(7);
-
-  // get state vectors and covariances
+  // get parameters and covariances of state
+  for (int i = 0; i < 8; i++) {
+    r(i, 0) = this->GetParameter(i);
+    for (int j = 0; j < 8; j++) {
+      C(i, j) = this->Cij(i, j);
+    }
+  }
+  // get parameters and covariances of measurement, set model of measurement
   for (int i = 0; i < 6; i++) {
-    m1(i, 0) = this->GetParameter(i);
-    m2(i, 0) = measurement.GetParameter(i);
-    delta(i, 0) = m2(i, 0) - m1(i, 0);
-
-    for (int j = i; j < 6; j++) {
-      C1(i, j) = this->Cij(i, j);
-      C2(i, j) = measurement.Cij(i, j);
-      Csum(i, j) = C1(i, j) + C2(i, j);
+    m(i, 0) = measurement.GetParameter(i);
+    for (int j = 0; j < 6; j++) {
+      V(i, j) = measurement.Cij(i, j);
+    }
+  }
+  // set model of measurement
+  for (int i = 0; i < 6; i++) {
+    for (int j = 0; j < 8; j++) {
+      H(i, j) = 0;
+      if (i == j) {
+        H(i, j) = 1;
+      }
     }
   }
 
-  // calculate gain
-  auto W{TMatrixDSym(TMatrixDSym::kInverted, Csum)};    // weight matrix (6x6)
-  auto K{TMatrixD(C1, TMatrixD::kMult, W)};             // Kalman gain (6x6)
-  auto D{TMatrixD(K, TMatrixD::kMult, delta)};          // 6x1
+  // calculate weight matrix and Kalman gain
+  TMatrixF Ht(TMatrixF::kTransposed, H);  // Transpose of H
+  W = H * C * Ht + V;                     // weight matrix
+  TMatrixF K = C * Ht * W.Invert();       // Kalman gain
 
-  // update measurement
-  for (int i = 0; i < 6; i++) {
-    this->Parameter(i) += D(i, 0);
-  }
-  // update energy 
-  double oldEnergy = this->GetParameter(6);
-  this->Parameter(6) += 1/(oldEnergy) * (delta(3, 0) * this->GetParameter(3) + delta(4, 0) * this->GetParameter(4) + delta(5, 0) * this->GetParameter(5));
+  // Update state
+  // calculate residual
+  TMatrixF residual = m;
+  residual -= H * r;
+  r += K * residual;
 
-  // get new covariance
-  TMatrixDSym U(6);
-  TMatrixDSym UnitMatrix(U);
-  auto F1{TMatrixD(U, TMatrixD::kMinus, K)};
-  auto F2{TMatrixD(TMatrixD::kTransposed, F1)};
+  // Update covariance matrix
+  TMatrixF I(C.GetNrows(), C.GetNcols());
+  TMatrixF unit(TMatrixF::kUnit, I);
+  C = (I - K * H) * C;
 
-  auto tmp{TMatrixD(F1, TMatrixD::kMult, C1)};
-  auto C{TMatrixD(tmp, TMatrixD::kMult, F2)};   // updated covariance matrix for space and momentum (6x6)
+  // energy not yet updated! still old parameter and covariance stored in r and C
+  // since energy depends on momentum, energy parameter needs to be updated ?
 
-  // update covariance
-  for (int i = 0; i < 6; i++) {
-    for (int j = i; j < 6; j++) {
-      this->Covariance(i, j) = C(i, j);
-    }
-  }
+  // update energy r(6, 0)
+  // updated energy = oldenergy + (1/oldenergy * (oldPx * dpx + oldPy * dpy + oldPz * dpz))
+  r(6, 0) += (1/this->GetParameter(6)) * (residual(3, 0) * this->GetParameter(3) + residual(4, 0) * this->GetParameter(4) + residual(5, 0) * this->GetParameter(5));
 
-  // set energy variance
-  this->Covariance(7, 7) = 1/(this->GetParameter(6) * this->GetParameter(6)) * (
-              (this->GetParameter(3) * this->GetParameter(3) * this->GetErrPx() * this->GetErrPx()) + 
-              (this->GetParameter(4) * this->GetParameter(4) * this->GetErrPy() * this->GetErrPy()) + 
-              (this->GetParameter(5) * this->GetParameter(5) * this->GetErrPz() * this->GetErrPz())
-              );
+  // update energy variance
+  // upated energy variance = (1/updated energy^2) * ((newPx * errPx)^2 * (newPy * errPy)^2 * (newPy * errPy)^2)
+  C(6, 6) = 1/(r(6, 0) * r(6, 0)) * (
+            (r(3, 0) * r(3, 0) * C(3, 3) * C(3, 3)) + 
+            (r(4, 0) * r(4, 0) * C(4, 4) * C(4, 4)) + 
+            (r(5, 0) * r(5, 0) * C(5, 5) * C(5, 5)));
 
-  // set energy covariances
+  // update energy covariances
+  // space: updated correlations = 0
+  // momentum: updated correlations = new_pi/new_energy * errPi^2
   for (int i = 0; i < 3; i++) {
-    this->Covariance(i, 7) = 0.;  // space --> is this really 0???
-                                  // momentum ???
+    // space correlations --> is this really 0??
+    C(i, 6) = C(6, i) = 0.;
+    // momentum correlations --> CORRECT ??
+    C(i+3, 6)  = r(i+3, 0)/r(6, 0) * C(i+3, i+3);
+    C(6, i+3)  = C(i+3, 6);
+    // what about s parameter correlation?
   }
 
   // calculate Chi2
-  TMatrixD Chi2tmp(delta, TMatrixD::kTransposeMult, W);
-  TMatrixD Chi2(Chi2tmp, TMatrixD::kMult, delta);
-  for (int i = 0; i < 6; i++) {
-    for (int j = i; j < 6; j++) {
-      this->Chi2() += Chi2(i, j);
-    }
-  }
-
+  // chi2 = oldChi2 + residual^T (V + HoldCH^T)^-1 residual
+  TMatrixF residualt(TMatrixF::kTransposed, residual);
+  residualt *= W.Invert() * residual;
+  float addChi2 = residualt(0, 0);
+  this->Chi2() += addChi2;
+  // --> what about other parameters? (7 and 8) --> how do they enter in chi2?
 }
