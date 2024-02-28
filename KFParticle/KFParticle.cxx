@@ -552,31 +552,31 @@ void KFParticle::AddMeasurement(KFParticle measurement)
   TMatrixF unit(TMatrixF::kUnit, I);
   C = (I - K * H) * C;
 
-  // energy not yet updated! still old parameter and covariance stored in r and C
-  // since energy depends on momentum, energy parameter needs to be updated ?
+  // // energy not yet updated! still old parameter and covariance stored in r and C
+  // // since energy depends on momentum, energy parameter needs to be updated ?
 
-  // update energy r(6, 0)
-  // updated energy = oldenergy + (1/oldenergy * (oldPx * dpx + oldPy * dpy + oldPz * dpz))
-  r(6, 0) += (1/this->GetParameter(6)) * (residual(3, 0) * this->GetParameter(3) + residual(4, 0) * this->GetParameter(4) + residual(5, 0) * this->GetParameter(5));
+  // // update energy r(6, 0)
+  // // updated energy = oldenergy + (1/oldenergy * (oldPx * dpx + oldPy * dpy + oldPz * dpz))
+  // r(6, 0) += (1/this->GetParameter(6)) * (residual(3, 0) * this->GetParameter(3) + residual(4, 0) * this->GetParameter(4) + residual(5, 0) * this->GetParameter(5));
 
-  // update energy variance
-  // upated energy variance = (1/updated energy^2) * ((newPx * errPx)^2 * (newPy * errPy)^2 * (newPy * errPy)^2)
-  C(6, 6) = 1/(r(6, 0) * r(6, 0)) * (
-            (r(3, 0) * r(3, 0) * C(3, 3) * C(3, 3)) + 
-            (r(4, 0) * r(4, 0) * C(4, 4) * C(4, 4)) + 
-            (r(5, 0) * r(5, 0) * C(5, 5) * C(5, 5)));
+  // // update energy variance
+  // // upated energy variance = (1/updated energy^2) * ((newPx * errPx)^2 + (newPy * errPy)^2 + (newPy * errPy)^2)
+  // C(6, 6) = 1/(r(6, 0) * r(6, 0)) * (
+  //           (r(3, 0) * r(3, 0) * C(3, 3) * C(3, 3)) + 
+  //           (r(4, 0) * r(4, 0) * C(4, 4) * C(4, 4)) + 
+  //           (r(5, 0) * r(5, 0) * C(5, 5) * C(5, 5)));
 
-  // update energy covariances
-  // space: updated correlations = 0
-  // momentum: updated correlations = new_pi/new_energy * errPi^2
-  for (int i = 0; i < 3; i++) {
-    // space correlations --> is this really 0??
-    C(i, 6) = C(6, i) = 0.;
-    // momentum correlations --> CORRECT ??
-    C(i+3, 6)  = r(i+3, 0)/r(6, 0) * C(i+3, i+3);
-    C(6, i+3)  = C(i+3, 6);
-    // what about s parameter correlation?
-  }
+  // // update energy covariances
+  // // space: updated correlations = 0
+  // // momentum: updated correlations = new_pi/new_energy * errPi^2
+  // for (int i = 0; i < 3; i++) {
+  //   // space correlations --> is this really 0??
+  //   C(i, 6) = C(6, i) = 0.;
+  //   // momentum correlations --> CORRECT ??
+  //   C(i+3, 6)  = r(i+3, 0)/r(6, 0) * C(i+3, i+3);
+  //   C(6, i+3)  = C(i+3, 6);
+  //   // what about s parameter correlation?
+  // }
 
   // calculate Chi2
   // chi2 = oldChi2 + residual^T (V + HoldCH^T)^-1 residual
@@ -584,5 +584,5 @@ void KFParticle::AddMeasurement(KFParticle measurement)
   residualt *= W.Invert() * residual;
   float addChi2 = residualt(0, 0);
   this->Chi2() += addChi2;
-  // --> what about other parameters? (7 and 8) --> how do they enter in chi2?
+  // --> what about other parameters? (7 and 8) --> how do they enter in chi2? --> do they enter?!
 }
